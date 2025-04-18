@@ -1,0 +1,80 @@
+import os
+import base64
+import getpass
+from Crypto.Cipher import AES
+from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad, unpad
+import argparse
+
+# Constants
+SALT_SIZE = 16
+IV_SIZE = 16
+KEY_SIZE = 32  # AES-256
+ITERATIONS = 100000
+
+def derive_key(password: str, salt: bytes) -> bytes:
+    """Derives a key from the given password and salt using PBKDF2."""
+    return PBKDF2(password, salt, dkLen=KEY_SIZE, count=ITERATIONS)
+
+def encrypt(message: bytes, password: str) -> str:
+    """Encrypts a message using AES-256 encryption."""
+    salt = get_random_bytes(SALT_SIZE)
+    key = derive_key(password, salt)
+    iv = get_random_bytes(IV_SIZE)
+    
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    ciphertext = cipher.encrypt(pad(message, AES.block_size))
+    
+    # Combine salt, iv, and ciphertext for storage
+    encrypted_data = salt + iv + ciphertext
+    return base64.b64encode(encrypted_data).decode('utf-8')
+
+def decrypt(encrypted_message: str, password: str) -> bytes:
+    """Decrypts an encrypted message using AES-256 encryption."""
+    encrypted_data = base64.b64decode(encrypted_message)
+    
+    salt = encrypted_data[:SALT_SIZE]
+    iv = encrypted_data[SALT_SIZE:SALT_SIZE + IV_SIZE]
+    ciphertext = encrypted_data[SALT_SIZE + IV_SIZE:]
+    
+    key = derive_key(password, salt)
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    
+    return unpad(cipher.decrypt(ciphertext), AES.block_size)
+
+def process_file(file_path: str, password: str, encrypting: bool) -> None:
+    """Encrypts or decrypts a file based on the operation specified."""
+    if encrypting:
+        with open(file_path, 'rb') as f:
+            data = f.read()
+        encrypted_data = encrypt(data, password)
+        with open(file_path + '.enc', 'w') as f:
+            f.write(encrypted_data)
+        print(f"File encrypted and saved as {file_path}.enc")
+    else:
+        with open(file_path, 'r') as f:
+            encrypted_data = f.read()
+        decrypted_data = decrypt(encrypted_data, password)
+        with open(file_path[:-4], 'wb') as f:
+            f.write(decrypted_data)
+        print(f"File decrypted and saved as {file_path[:-4]}")
+
+def main():
+    parser = argparse.ArgumentParser(description='AES-256 Encryption/Decryption Tool')
+    parser.add_argument('operation', choices=['encrypt', 'decrypt'], help='Operation to perform')
+    parser.add_argument('file', help='File to encrypt or decrypt')
+    args = parser.parse_args()
+
+    password = getpass.getpass(prompt='Enter password: ')
+    
+    if args.operation == 'encrypt':
+        process_file(args.file, password, encrypting=True)
+    elif args.operation == 'decrypt':
+        if not args.file.endswith('.enc'):
+            print("Decryption requires a file with .enc extension.")
+            return
+        process_file(args.file, password, encrypting=False)
+
+if __name__ == '__main__':
+    main()
