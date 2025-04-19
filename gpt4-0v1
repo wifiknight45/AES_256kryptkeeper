@@ -67,8 +67,10 @@ def main():
     parser = argparse.ArgumentParser(description='AES-256 Encryption/Decryption Tool')
     parser.add_argument('operation', choices=['encrypt', 'decrypt'], help='Operation to perform')
     parser.add_argument('file', help='File to encrypt or decrypt')
-    args = parser.parse_args()
-
+    
+    # Provide arguments directly (replace with your desired operation and file)
+    args = parser.parse_args(['encrypt', 'my_file.txt'])  # Example: encrypt my_file.txt
+    
     password = getpass.getpass(prompt='Enter password: ')
     
     if args.operation == 'encrypt':
