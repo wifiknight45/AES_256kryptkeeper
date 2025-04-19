@@ -1,3 +1,6 @@
+
+!pip install pycryptodome
+
 import os
 import base64
 import getpass
